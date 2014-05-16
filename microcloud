@@ -35,6 +35,24 @@ OS=${OS/[0-9]*/}
 # Remove -gnu from linux-gnu
 OS=${OS/-*/}
 
+# Get Linux distro
+DISTRO="";
+
+grep "centos" /etc/issue -i -q
+if [ $? = '0' ];then
+DISTRO="centos"
+fi
+
+grep "fedora" /etc/issue -i -q
+if [ $? = '0' ];then
+DISTRO="centos"
+fi
+
+grep "debian" /etc/issue -i -q
+if [ $? = '0' ];then
+DISTRO="debian"
+fi
+
 VIRTUALBOX_DMG_URL=http://download.virtualbox.org/virtualbox/4.1.18/VirtualBox-4.1.18-78361-OSX.dmg
 VIRTUALBOX_DMG_FILE=${VIRTUALBOX_DMG_URL/*\//}
 
@@ -81,12 +99,13 @@ EOS
 verify_os() {
     x=`type which`; catch
     if [ $OS != 'linux' ] && [ $OS != 'darwin' ]; then
-        die "Error: this installer currently only runs on Debian Linux or OS X"
+        die "Error: this installer currently only runs on Debian/CentOS/Fedora or OS X"
     fi
     if [ $OS == 'linux' ]; then
         APTGET=`which apt-get`
-        if [ -z $APTGET ]; then
-            die "Error: this installer currently only runs on Debian-style for Linux"
+        YUM=`which yum`
+        if [ -z $APTGET ] && [ -z $YUM ]; then
+            die "Error: this installer currently only runs on Debian/CentOS/Fedora for Linux"
         fi
     fi
 }
@@ -182,17 +201,29 @@ install_vbox() {
         echo
         case $OS in
             linux)
-                echo "*** Installing VirtualBox from Debian package"
-                if [ `apt-cache search virtualbox | grep -i '^virtualbox ' | wc -l` == '1' ]; then
-                    PKG=virtualbox
-                elif [ `apt-cache search virtualbox-ose | grep -i '^virtualbox-ose ' | wc -l` == '1' ]; then
-                    PKG=virtualbox-ose
-                else
-                    echo "Can't find a virtualbox debian package."
-                    die "Try installing VirtualBox yourself and then run this again."
+                if [ $DISTRO=="debian" ]; then
+                    echo "*** Installing VirtualBox from Debian package"
+                    if [ `apt-cache search virtualbox | grep -i '^virtualbox ' | wc -l` == '1' ]; then
+                        PKG=virtualbox
+                    elif [ `apt-cache search virtualbox-ose | grep -i '^virtualbox-ose ' | wc -l` == '1' ]; then
+                        PKG=virtualbox-ose
+                    else
+                        echo "Can't find a virtualbox debian package."
+                        die "Try installing VirtualBox yourself and then run this again."
+                    fi
+                    echo "sudo apt-get install -y $PKG"
+                    sudo apt-get install -y $PKG; catch
+                elif [ $DISTRO=="centos" ]; then
+                    echo "*** Installing VirtualBox from CentOS / Fedora package"
+                    if [ `yum search virtualbox | grep -i '^virtualbox\.' | wc -l` == '1' ]; then
+                        PKG=VirtualBox
+                    else
+                        echo "Can't find a VirtualBox Fedora/CentOS package."
+                        die "Try installing VirtualBox yourself and then run this again."
+                    fi
+                    echo "sudo yum install -y $PKG"
+                    sudo yum install -y $PKG; catch
                 fi
-                echo "sudo apt-get install -y $PKG"
-                sudo apt-get install -y $PKG; catch
                 ;;
             darwin)
                 echo "*** Installing VirtualBox from virtualbox.org"
